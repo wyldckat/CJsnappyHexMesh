@@ -1,0 +1,6 @@
+
+Brought to my attention here: [http://www.cfd-online.com/Forums/openfoam/105558-need-directtopochange-h.html]
+
+Source [http://www.tfd.chalmers.se/~hani/kurser/OS_CFD_2011/]:
+* Christoffer Järpner: Projection of a mesh on an stl surface. [http://www.tfd.chalmers.se/~hani/kurser/OS_CFD_2011/ChristofferJarpner/OpenFOAMPPTChristofferJarpner.pdf Slides], [http://www.tfd.chalmers.se/~hani/kurser/OS_CFD_2011/ChristofferJarpner/ReportInOpenFOAMbyChristofferJarpner.pdf Report], [http://www.tfd.chalmers.se/~hani/kurser/OS_CFD_2011/ChristofferJarpner/UpdatedmysnappyHexMesh.zip Code], [http://www.tfd.chalmers.se/~hani/kurser/OS_CFD_2011/ChristofferJarpner/UpdatedSnappyTestCase.zip Case]
+

@@ -1,4 +1,6 @@
+<br />
 
+= Description =
 Brought to my attention here: [http://www.cfd-online.com/Forums/openfoam/105558-need-directtopochange-h.html]
 
 Source of modifications at [http://www.tfd.chalmers.se/~hani/kurser/OS_CFD_2011/]:
@@ -8,9 +10,34 @@ Original sources from OpenFOAM 2.1.x and 1.6-ext:
 * 2.1.x commit 334ec14f742f95b1198bc0de318d625fc724b5e7
 * 1.6-ext commit c04489736fa1e44c123c6d801f54044f2679bfca
 
-License
-=======
+= Usage instructions =
 
+# Download, either using <code>git</code> or use the ''Downloads'' pseudo-button on the top right at [https://github.com/wyldckat/CJsnappyHexMesh].
+# Depending on whether you're using 1.6-ext or 2.1.x, go into the respective <code>CJsnappyHexMesh*</code> folder.
+# Run: <pre>wmake</pre>
+# Go to the respective case folder <code>tutorials/SnappyTestCase-*</code> and there you can run one of the following 2 commands: <pre>./Allrun
+./Allrun2</pre>
+# Read the comments in <code>Allrun2</code> to learn the differences between the two scripts.
+# Reset the case folder by running: <pre>./Allclean</pre>
+
+= Additional adaptations =
+Given that Christoffer Järpner's modifications were meant for 1.6-ext, there were several adaptations required for things to work with 2.1.x. Those were:
+<ol><li>Had to include:
+<pre>#include "polyTopoChange.H"
+#include "polyTopoChanger.H"</pre>
+Instead of:
+<pre>#include "directTopoChange.H"</pre></li>
+<li>This lead to renaming the references of <code>directTopoChange</code> to <code>polyTopoChange</code>.</li>
+<li>Added references to <code>dynamicFvMesh</code> in <code>Make/options</code>.</li>
+<li>This: <pre>boolList boundaryPoint(mesh.allPoints().size(), false);</pre> Changed to this: <pre>boolList boundaryPoint(mesh.points().size(), false);</pre></li>
+<li>Had to ''stich by hand'' some of the modifications to <code>mysnappyHexMesh.C</code>.</li>
+</ol>
+
+Whenever there was a problem during the build, I looked for the variable/class/name in 1.6-ext's folder <code>applications/utilities</code> using <code>grep</code>. Example:
+<pre>grep -r "directTopoChange.H" *</pre>
+Then looked at <code>grep</code>'s output, picked out a file where the occurence was found and opened the respective file in 2.1.x. Compared the differences and ''voilà''!
+
+= License =
 This is bound to the same license as OpenFOAM, namely GPLv3. Which means that you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 See http://www.gnu.org/licenses/ for more information about GPL.
 

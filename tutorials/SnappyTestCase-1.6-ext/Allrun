@@ -11,4 +11,4 @@ cp Files/dynamicMeshDict constant/.
 cp Files/velocity .
 
 blockMesh
-mysnappyHexMesh >> log_snappy
+CJsnappyHexMesh >> log_snappy

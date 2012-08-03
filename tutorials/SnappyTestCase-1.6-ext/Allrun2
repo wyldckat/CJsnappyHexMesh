@@ -19,7 +19,7 @@ cp Files/forAllrun2/dynamicMeshDictDOWN constant/dynamicMeshDict
 cp Files/forAllrun2/velocity .
 
 blockMesh
-mysnappyHexMesh >> log_snappy
+CJsnappyHexMesh >> log_snappy
 moveDynamicMesh >> log_DynMesh
 
 cp Files/forAllrun2/dynamicMeshDictUP constant/dynamicMeshDict
@@ -28,4 +28,4 @@ moveDynamicMesh >> log_DynMesh
 
 cp Files/forAllrun2/snappyHexMeshDictAfter system/snappyHexMeshDict
 
-mysnappyHexMesh >> log_snappy
+CJsnappyHexMesh >> log_snappy

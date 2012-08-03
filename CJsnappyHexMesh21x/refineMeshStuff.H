@@ -229,7 +229,7 @@ label twoDNess(const polyMesh& mesh)
     //
 
     // Mark boundary points
-    boolList boundaryPoint(mesh.allPoints().size(), false);
+    boolList boundaryPoint(mesh.points().size(), false);
 
     forAll(patches, patchI)
     {

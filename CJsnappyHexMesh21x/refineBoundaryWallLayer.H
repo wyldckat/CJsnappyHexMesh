@@ -151,12 +151,12 @@ nLayers++;
         cutEdgeWeights      // weight on cut edges
     );
 
-    directTopoChange meshMod(mesh);
+    polyTopoChange meshMod(mesh);
 
     // Cutting engine
     meshCutter cutter(mesh);
 
-    // Insert mesh refinement into directTopoChange.
+    // Insert mesh refinement into polyTopoChange.
     cutter.setRefinement(cuts, meshMod);
 
     // Do all changes

@@ -12,13 +12,14 @@ Original sources from OpenFOAM 2.1.x and 1.6-ext:
 
 = Usage instructions =
 
-# Download, either using <code>git</code> or use the ''Downloads'' pseudo-button on the top right at [https://github.com/wyldckat/CJsnappyHexMesh].
-# Depending on whether you're using 1.6-ext or 2.1.x, go into the respective <code>CJsnappyHexMesh*</code> folder.
-# Run: <pre>wmake</pre>
-# Go to the respective case folder <code>tutorials/SnappyTestCase-*</code> and there you can run one of the following 2 commands: <pre>./Allrun
-./Allrun2</pre>
-# Read the comments in <code>Allrun2</code> to learn the differences between the two scripts.
-# Reset the case folder by running: <pre>./Allclean</pre>
+<ol><li>Download, either using <code>git</code> or use the ''Downloads'' pseudo-button on the top right at [https://github.com/wyldckat/CJsnappyHexMesh].</li>
+<li>Depending on whether you're using 1.6-ext or 2.1.x, go into the respective <code>CJsnappyHexMesh*</code> folder.</li>
+<li>Run: <pre>wmake</pre></li>
+<li>Go to the respective case folder <code>tutorials/SnappyTestCase-*</code> and there you can run one of the following 2 commands: <pre>./Allrun
+./Allrun2</pre></li>
+<li>Read the comments in <code>Allrun2</code> to learn the differences between the two scripts.</li>
+<li>Reset the case folder by running: <pre>./Allclean</pre></li>
+</ol>
 
 = Additional adaptations =
 Given that Christoffer Järpner's modifications were meant for 1.6-ext, there were several adaptations required for things to work with 2.1.x. Those were:

@@ -1,0 +1,1003 @@
+diff -Nur snappyHexMesh16ext/createWeights.H CJsnappyHexMesh16ext/createWeights.H
+--- snappyHexMesh16ext/createWeights.H	1970-01-01 01:00:00.000000000 +0100
++++ CJsnappyHexMesh16ext/createWeights.H	2012-08-03 10:53:37.120962745 +0100
+@@ -0,0 +1,22 @@
++//reading the dictionary for the layer properties.
++scalar nLayers=readScalar(meshDict.lookup("nLayers"));
++scalar stretching=readScalar(meshDict.lookup("stretching"));
++nLayers++;
++// label patchName=readLabel(meshDict.lookup("patch"));
++//Calculating the length of the cell that's going to be refined (in weighted terms).
++scalar L[100];
++scalar Li[100];
++L[0]=0;
++L[1]=1;
++for(int j=1;j<nLayers-1;j++)
++{
++       L[j+1]=stretching*(L[j]-L[j-1])+L[j];
++}
++int k=0;
++for(int i=nLayers-2;i>=1;i--)
++{
++       Li[k]=1-(L[i+1]-L[i])/L[i+1];
++       Info << "weightedthings =" << Li[k] << endl;
++       k=k+1;
++}
++
+diff -Nur snappyHexMesh16ext/Make/files CJsnappyHexMesh16ext/Make/files
+--- snappyHexMesh16ext/Make/files	2012-08-03 11:22:02.272902266 +0100
++++ CJsnappyHexMesh16ext/Make/files	2012-08-03 11:11:51.544923928 +0100
+@@ -1,3 +1,3 @@
+-snappyHexMesh.C
++mysnappyHexMesh.C
++EXE = $(FOAM_USER_APPBIN)/CJsnappyHexMesh
+ 
+-EXE = $(FOAM_APPBIN)/snappyHexMesh
+diff -Nur snappyHexMesh16ext/Make/options CJsnappyHexMesh16ext/Make/options
+--- snappyHexMesh16ext/Make/options	2012-08-03 11:22:02.272902266 +0100
++++ CJsnappyHexMesh16ext/Make/options	2012-08-03 10:53:37.124962745 +0100
+@@ -14,4 +14,5 @@
+     -lmeshTools \
+     -ldynamicMesh \
+     -ldynamicFvMesh \
++    -llduSolvers \
+     -lautoMesh
+diff -Nur snappyHexMesh16ext/moveDynamicMesh.H CJsnappyHexMesh16ext/moveDynamicMesh.H
+--- snappyHexMesh16ext/moveDynamicMesh.H	1970-01-01 01:00:00.000000000 +0100
++++ CJsnappyHexMesh16ext/moveDynamicMesh.H	2012-08-03 10:53:37.120962745 +0100
+@@ -0,0 +1,37 @@
++#   include "setRootCase.H"
++#   include "createTime.H"
++#   include "createDynamicFvMesh.H"
++
++    for(int i=0;i<nDynIter;i++)
++    {
++        if (!overwrite)
++        {
++            const_cast<Time&>(mesh.time())++;
++        }
++    	Info<< "Time = " << runTime.timeName() << endl;
++
++        if (isDir(runTime.path()/"VTK"))
++        {
++            Info << "Clear VTK directory" << endl;
++            rmDir(runTime.path()/"VTK");
++        }
++
++        mesh.update();
++
++//#       include "checkVolContinuity.H"
++
++        mesh.checkMesh(true);
++
++        runTime.write();
++
++        Info<< "ExecutionTime = " << runTime.elapsedCpuTime() << " s"
++            << "  ClockTime = " << runTime.elapsedClockTime() << " s"
++            << nl << endl;
++    }
++
++    Info<< "End\n" << endl;
++
++
++
++
++// ************************************************************************* //
+diff -Nur snappyHexMesh16ext/mysnappyHexMesh.C CJsnappyHexMesh16ext/mysnappyHexMesh.C
+--- snappyHexMesh16ext/mysnappyHexMesh.C	2012-08-03 11:22:02.272902266 +0100
++++ CJsnappyHexMesh16ext/mysnappyHexMesh.C	2012-08-03 10:53:37.120962745 +0100
+@@ -45,6 +45,27 @@
+ #include "refinementParameters.H"
+ #include "snapParameters.H"
+ #include "layerParameters.H"
++#include "dynamicFvMesh.H"
++#include "polyMesh.H"
++#include "undoableMeshCutter.H"
++#include "hexCellLooper.H"
++#include "cellSet.H"
++#include "twoDPointCorrector.H"
++#include "directions.H"
++#include "OFstream.H"
++#include "multiDirRefinement.H"
++#include "labelIOList.H"
++#include "wedgePolyPatch.H"
++#include "plane.H"
++#include "cellCuts.H"
++#include "cellSet.H"
++#include "meshCutter.H"
++#include "directTopoChange.H"
++#include "mapPolyMesh.H"
++#include "fvCFD.H"
++#include "pointFields.H"
++#include "Istream.H"
++#include "pointMesh.H"
+ 
+ 
+ using namespace Foam;
+@@ -84,6 +105,7 @@
+     return mergeDist;
+ }
+ 
++#include "refineMeshStuff.H"
+ 
+ // Write mesh and additional information
+ void writeMesh
+@@ -115,7 +137,9 @@
+ 
+ int main(int argc, char *argv[])
+ {
+-    argList::validOptions.insert("overwrite", "");
++    for (int Testing=1;Testing<=10;Testing++)
++    {
++          argList::validOptions.insert("overwrite", "");
+ #   include "setRootCase.H"
+ #   include "createTime.H"
+     runTime.functionObjects().off();
+@@ -360,6 +384,38 @@
+     Switch wantRefine(meshDict.lookup("castellatedMesh"));
+     Switch wantSnap(meshDict.lookup("snap"));
+     Switch wantLayers(meshDict.lookup("addLayers"));
++    Switch wantProjection(meshDict.lookup("projection"));
++    Switch wantDynMesh(meshDict.lookup("DynMesh"));
++    Switch wantRefineMesh(meshDict.lookup("refineMesh"));
++    Switch wantBoundaryLayer(meshDict.lookup("boundaryLayer"));
++
++
++      pointMesh pMesh(mesh);
++     pointVectorField pointMotionU
++     (
++            IOobject
++            (
++                   "pointMotionU",
++                   runTime.timeName(),
++                   mesh,
++                   IOobject::MUST_READ,
++                   IOobject::AUTO_WRITE
++              ),
++              pMesh
++      );
++     
++
++scalar nRefs=0;
++ if (wantRefineMesh)
++ {
++    nRefs=readScalar(meshDict.lookup("nRefinements"));
++ }
++ bool notLast=true;
++if (Testing==nRefs+1)
++ {
++    Testing=10;
++    notLast=false;
++ }
+ 
+     if (wantRefine)
+     {
+@@ -394,37 +450,56 @@
+             << timer.cpuTimeIncrement() << " s." << endl;
+     }
+ 
+-    if (wantSnap)
+-    {
+-        cpuTime timer;
+-
+-        autoSnapDriver snapDriver
+-        (
+-            meshRefiner,
+-            globalToPatch
+-        );
+-
+-        // Snap parameters
+-        snapParameters snapParams(snapDict);
+-
+-        if (!overwrite)
+-        {
+-            const_cast<Time&>(mesh.time())++;
+-        }
+-
+-        snapDriver.doSnap(snapDict, motionDict, snapParams);
+-
+-        writeMesh
+-        (
+-            "Snapped mesh",
+-            meshRefiner,
+-            debug
+-        );
++if (wantSnap || wantProjection)
++   {
+ 
+-        Info<< "Mesh snapped in = "
+-            << timer.cpuTimeIncrement() << " s." << endl;
++         cpuTime timer;
++         autoSnapDriver snapDriver
++         (
++               meshRefiner,
++               globalToPatch
++         );
++         // Snap parameters
++         snapParameters snapParams(snapDict);
++         if (!overwrite)
++         {
++               const_cast<Time&>(mesh.time())++;
++         }
++         snapDriver.doSnap(snapDict, motionDict, snapParams);
++         writeMesh
++         (
++               "Snapped mesh",
++               meshRefiner,
++               debug
++         );
++         Info<< "Mesh snapped in = "
++               << timer.cpuTimeIncrement() << " s." << endl;
++   }
++   if (wantRefineMesh && notLast)
++         {
++                 #   include "refineMesh.H"
++         }
++   if (wantDynMesh && Testing==10)
++       {
++	      scalar nDynIter=readScalar(meshDict.lookup("nDynIter")); 
++              #   include "moveDynamicMesh.H"
++       }
++   if (wantBoundaryLayer && Testing==10)
++       {
++       	      #   include "createWeights.H"
++              //splitting the closest row of cells in to nLayer amount of cells. using the
++              //source code from refineWallLayer.C.
++       scalar weight=0;
++       for(int i=0;i<nLayers-2;i++)
++       {
++              //calculating the weighted place to cut the mesh for this itteration.
++              Info << "weight =" << Li[i] << endl;
++              weight=Li[i];
++              #   include "refineBoundaryWallLayer.H"
++       }
+     }
+ 
++
+     if (wantLayers)
+     {
+         cpuTime timer;
+@@ -478,7 +553,8 @@
+         << runTime.elapsedCpuTime() << " s." << endl;
+ 
+     Info<< "End\n" << endl;
+-
++    
++}
+     return(0);
+ }
+ 
+diff -Nur snappyHexMesh16ext/refineBoundaryWallLayer.H CJsnappyHexMesh16ext/refineBoundaryWallLayer.H
+--- snappyHexMesh16ext/refineBoundaryWallLayer.H	1970-01-01 01:00:00.000000000 +0100
++++ CJsnappyHexMesh16ext/refineBoundaryWallLayer.H	2012-08-03 10:53:37.120962745 +0100
+@@ -0,0 +1,195 @@
++//reading the dictionary for the layer properties.
++     scalar nLayers=readScalar(meshDict.lookup("nLayers"));
++nLayers++;
++//Calculating the length of the cell that's going to be refined (in weighted terms).
++#    include "setRootCase.H"
++#    include "createTime.H"
++     runTime.functionObjects().off();
++#    include "createPolyMesh.H"
++     const word oldInstance = mesh.pointsInstance();
++     word patchName
++   (
++         meshDict.lookup("patch")
++     );
++     bool overwrite = args.optionFound("overwrite");
++
++
++    label patchID = mesh.boundaryMesh().findPatchID(patchName);
++
++    if (patchID == -1)
++    {
++        FatalErrorIn(args.executable())
++            << "Cannot find patch " << patchName << endl
++            << "Valid patches are " << mesh.boundaryMesh().names()
++            << exit(FatalError);
++    }
++    const polyPatch& pp = mesh.boundaryMesh()[patchID];
++
++
++    // Cells cut
++
++    labelHashSet cutCells(4*pp.size());
++
++    const labelList& meshPoints = pp.meshPoints();
++
++    forAll(meshPoints, pointI)
++    {
++        label meshPointI = meshPoints[pointI];
++
++        const labelList& pCells = mesh.pointCells()[meshPointI];
++
++        forAll(pCells, pCellI)
++        {
++            cutCells.insert(pCells[pCellI]);
++        }
++    }
++
++    Info<< "Selected " << cutCells.size()
++        << " cells connected to patch " << pp.name() << endl << endl;
++
++    //
++    // List of cells to refine
++    //
++
++    bool useSet = args.optionFound("useSet");
++
++    if (useSet)
++    {
++        word setName(args.option("useSet"));
++
++        Info<< "Subsetting cells to cut based on cellSet" << setName << endl
++            << endl;
++
++        cellSet cells(mesh, setName);
++
++        Info<< "Read " << cells.size() << " cells from cellSet "
++            << cells.instance()/cells.local()/cells.name()
++            << endl << endl;
++
++        for
++        (
++            cellSet::const_iterator iter = cells.begin();
++            iter != cells.end();
++            ++iter
++        )
++        {
++            cutCells.erase(iter.key());
++        }
++        Info<< "Removed from cells to cut all the ones not in set " << setName
++            << endl << endl;
++    }
++
++    // Mark all meshpoints on patch
++
++    boolList vertOnPatch(mesh.nPoints(), false);
++
++    forAll(meshPoints, pointI)
++    {
++        label meshPointI = meshPoints[pointI];
++
++        vertOnPatch[meshPointI] = true;
++    }
++
++
++    // Mark cut edges.
++
++    DynamicList<label> allCutEdges(pp.nEdges());
++
++    DynamicList<scalar> allCutEdgeWeights(pp.nEdges());
++
++    forAll(meshPoints, pointI)
++    {
++        label meshPointI = meshPoints[pointI];
++
++        const labelList& pEdges = mesh.pointEdges()[meshPointI];
++
++        forAll(pEdges, pEdgeI)
++        {
++            label edgeI = pEdges[pEdgeI];
++
++            const edge& e = mesh.edges()[edgeI];
++
++            label otherPointI = e.otherVertex(meshPointI);
++
++            if (!vertOnPatch[otherPointI])
++            {
++                allCutEdges.append(edgeI);
++
++                if (e.start() == meshPointI)
++                {
++                    allCutEdgeWeights.append(weight);
++                }
++                else
++                {
++                    allCutEdgeWeights.append(1 - weight);
++                }
++            }
++        }
++    }
++
++    allCutEdges.shrink();
++    allCutEdgeWeights.shrink();
++
++    Info<< "Cutting:" << endl
++        << "    cells:" << cutCells.size() << endl
++        << "    edges:" << allCutEdges.size() << endl
++        << endl;
++
++    // Transfer DynamicLists to straight ones.
++    scalarField cutEdgeWeights;
++    cutEdgeWeights.transfer(allCutEdgeWeights);
++    allCutEdgeWeights.clear();
++
++
++    // Gets cuts across cells from cuts through edges.
++    cellCuts cuts
++    (
++        mesh,
++        cutCells.toc(),     // cells candidate for cutting
++        labelList(0),       // cut vertices
++        allCutEdges,        // cut edges
++        cutEdgeWeights      // weight on cut edges
++    );
++
++    directTopoChange meshMod(mesh);
++
++    // Cutting engine
++    meshCutter cutter(mesh);
++
++    // Insert mesh refinement into directTopoChange.
++    cutter.setRefinement(cuts, meshMod);
++
++    // Do all changes
++    Info<< "Morphing ..." << endl;
++
++    if (!overwrite)
++    {
++        runTime++;
++    }
++
++    autoPtr<mapPolyMesh> morphMap = meshMod.changeMesh(mesh, false);
++
++    if (morphMap().hasMotionPoints())
++    {
++        mesh.movePoints(morphMap().preMotionPoints());
++    }
++
++    // Update stored labels on meshCutter.
++    cutter.updateMesh(morphMap());
++
++    if (overwrite)
++    {
++        mesh.setInstance(oldInstance);
++    }
++
++    // Write resulting mesh
++    Info << "Writing refined morphMesh to time " << runTime.timeName() << endl;
++
++    mesh.write();
++
++    Info << "End\n" << endl;
++
++
++
++
++// ************************************************************************* //
+diff -Nur snappyHexMesh16ext/refineMesh.H CJsnappyHexMesh16ext/refineMesh.H
+--- snappyHexMesh16ext/refineMesh.H	1970-01-01 01:00:00.000000000 +0100
++++ CJsnappyHexMesh16ext/refineMesh.H	2012-08-03 10:53:37.120962745 +0100
+@@ -0,0 +1,236 @@
++#   include "createPolyMesh.H"
++    const word oldInstance = mesh.pointsInstance();
++
++    printEdgeStats(mesh);
++
++pointMesh pMesh(mesh);
++pointVectorField pointMotionU
++(
++     IOobject
++  (
++          "pointMotionU",
++          runTime.timeName(),
++          mesh,
++          IOobject::MUST_READ,
++          IOobject::AUTO_WRITE
++  ),
++      pMesh
++);
++
++
++    //
++    // Read/construct control dictionary
++    //
++
++    bool readDict = args.optionFound("dict");
++    bool overwrite = args.optionFound("overwrite");
++
++    // List of cells to refine
++    labelList refCells;
++
++    // Dictionary to control refinement
++    dictionary refineDict;
++
++    if (readDict)
++    {
++        Info<< "Refining according to refineMeshDict" << nl << endl;
++
++        refineDict =
++            IOdictionary
++            (
++                IOobject
++                (
++                    "refineMeshDict",
++                    runTime.system(),
++                    mesh,
++                    IOobject::MUST_READ,
++                    IOobject::NO_WRITE
++                )
++            );
++
++        word setName(refineDict.lookup("set"));
++
++        cellSet cells(mesh, setName);
++
++        Pout<< "Read " << cells.size() << " cells from cellSet "
++            << cells.instance()/cells.local()/cells.name()
++            << endl << endl;
++
++        refCells = cells.toc();
++    }
++    else
++    {
++        Info<< "Refining all cells" << nl << endl;
++
++        // Select all cells
++        refCells.setSize(mesh.nCells());
++
++        forAll(mesh.cells(), cellI)
++        {
++            refCells[cellI] = cellI;
++        }
++
++
++        // Set refinement directions based on 2D/3D
++        label axisIndex = twoDNess(mesh);
++
++        if (axisIndex == -1)
++        {
++            Info<< "3D case; refining all directions" << nl << endl;
++
++            wordList directions(3);
++            directions[0] = "tan1";
++            directions[1] = "tan2";
++            directions[2] = "normal";
++            refineDict.add("directions", directions);
++
++            // Use hex cutter
++            refineDict.add("useHexTopology", "true");
++        }
++        else
++        {
++            wordList directions(2);
++
++            if (axisIndex == 0)
++            {
++                Info<< "2D case; refining in directions y,z\n" << endl;
++                directions[0] = "tan2";
++                directions[1] = "normal";
++            }
++            else if (axisIndex == 1)
++            {
++                Info<< "2D case; refining in directions x,z\n" << endl;
++                directions[0] = "tan1";
++                directions[1] = "normal";
++            }
++            else
++            {
++                Info<< "2D case; refining in directions x,y\n" << endl;
++                directions[0] = "tan1";
++                directions[1] = "tan2";
++            }
++
++            refineDict.add("directions", directions);
++
++            // Use standard cutter
++            refineDict.add("useHexTopology", "false");
++        }
++
++        refineDict.add("coordinateSystem", "global");
++
++        dictionary coeffsDict;
++        coeffsDict.add("tan1", vector(1, 0, 0));
++        coeffsDict.add("tan2", vector(0, 1, 0));
++        refineDict.add("globalCoeffs", coeffsDict);
++
++        refineDict.add("geometricCut", "false");
++        refineDict.add("writeMesh", "false");
++    }
++
++
++    string oldTimeName(runTime.timeName());
++
++    if (!overwrite)
++    {
++        runTime++;
++    }
++
++
++    // Multi-directional refinement (does multiple iterations)
++    multiDirRefinement multiRef(mesh, refCells, refineDict);
++
++
++    // Write resulting mesh
++    if (overwrite)
++    {
++        mesh.setInstance(oldInstance);
++    }
++    mesh.write();
++
++
++    // Get list of cell splits.
++    // (is for every cell in old mesh the cells they have been split into)
++    const labelListList& oldToNew = multiRef.addedCells();
++
++
++    // Create cellSet with added cells for easy inspection
++    cellSet newCells(mesh, "refinedCells", refCells.size());
++
++    forAll(oldToNew, oldCellI)
++    {
++        const labelList& added = oldToNew[oldCellI];
++
++        forAll(added, i)
++        {
++            newCells.insert(added[i]);
++        }
++    }
++
++    Pout<< "Writing refined cells (" << newCells.size() << ") to cellSet "
++        << newCells.instance()/newCells.local()/newCells.name()
++        << endl << endl;
++
++    newCells.write();
++
++
++
++
++    //
++    // Invert cell split to construct map from new to old
++    //
++
++    labelIOList newToOld
++    (
++        IOobject
++        (
++            "cellMap",
++            runTime.timeName(),
++            polyMesh::meshSubDir,
++            mesh,
++            IOobject::NO_READ,
++            IOobject::AUTO_WRITE
++        ),
++        mesh.nCells()
++    );
++    newToOld.note() =
++        "From cells in mesh at "
++      + runTime.timeName()
++      + " to cells in mesh at "
++      + oldTimeName;
++
++
++    forAll(oldToNew, oldCellI)
++    {
++        const labelList& added = oldToNew[oldCellI];
++
++        if (added.size())
++        {
++            forAll(added, i)
++            {
++                newToOld[added[i]] = oldCellI;
++            }
++        }
++        else
++        {
++            // Unrefined cell
++            newToOld[oldCellI] = oldCellI;
++        }
++    }
++
++    Info<< "Writing map from new to old cell to "
++        << newToOld.objectPath() << nl << endl;
++
++    newToOld.write();
++
++
++    // Some statistics.
++
++    printEdgeStats(mesh);
++
++    Info<< "End\n" << endl;
++
++
++
++
++
++// ************************************************************************* //
+diff -Nur snappyHexMesh16ext/refineMeshStuff.H CJsnappyHexMesh16ext/refineMeshStuff.H
+--- snappyHexMesh16ext/refineMeshStuff.H	1970-01-01 01:00:00.000000000 +0100
++++ CJsnappyHexMesh16ext/refineMeshStuff.H	2012-08-03 10:53:37.120962745 +0100
+@@ -0,0 +1,290 @@
++/*---------------------------------------------------------------------------*\
++  =========                 |
++  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
++   \\    /   O peration     |
++    \\  /    A nd           | Copyright held by original author
++     \\/     M anipulation  |
++-------------------------------------------------------------------------------
++License
++    This file is part of OpenFOAM.
++
++    OpenFOAM is free software; you can redistribute it and/or modify it
++    under the terms of the GNU General Public License as published by the
++    Free Software Foundation; either version 2 of the License, or (at your
++    option) any later version.
++
++    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
++    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++    for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with OpenFOAM; if not, write to the Free Software Foundation,
++    Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
++
++Description
++    Utility to refine cells in multiple directions.
++
++    Either supply -all option to refine all cells (3D refinement for 3D
++    cases; 2D for 2D cases) or reads a refineMeshDict with
++    - cellSet to refine
++    - directions to refine
++
++\*---------------------------------------------------------------------------*/
++
++#include "argList.H"
++#include "polyMesh.H"
++#include "Time.H"
++#include "undoableMeshCutter.H"
++#include "hexCellLooper.H"
++#include "cellSet.H"
++#include "twoDPointCorrector.H"
++#include "directions.H"
++#include "OFstream.H"
++#include "multiDirRefinement.H"
++#include "labelIOList.H"
++#include "wedgePolyPatch.H"
++#include "plane.H"
++
++using namespace Foam;
++
++// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
++
++
++// Max cos angle for edges to be considered aligned with axis.
++static const scalar edgeTol = 1E-3;
++
++
++// Calculate some edge statistics on mesh.
++void printEdgeStats(const primitiveMesh& mesh)
++{
++    label nX = 0;
++    label nY = 0;
++    label nZ = 0;
++
++    scalar minX = GREAT;
++    scalar maxX = -GREAT;
++    vector x(1, 0, 0);
++
++    scalar minY = GREAT;
++    scalar maxY = -GREAT;
++    vector y(0, 1, 0);
++
++    scalar minZ = GREAT;
++    scalar maxZ = -GREAT;
++    vector z(0, 0, 1);
++
++    scalar minOther = GREAT;
++    scalar maxOther = -GREAT;
++
++    const edgeList& edges = mesh.edges();
++
++    forAll(edges, edgeI)
++    {
++        const edge& e = edges[edgeI];
++
++        vector eVec(e.vec(mesh.points()));
++
++        scalar eMag = mag(eVec);
++
++        eVec /= eMag;
++
++        if (mag(eVec & x) > 1-edgeTol)
++        {
++            minX = min(minX, eMag);
++            maxX = max(maxX, eMag);
++            nX++;
++        }
++        else if (mag(eVec & y) > 1-edgeTol)
++        {
++            minY = min(minY, eMag);
++            maxY = max(maxY, eMag);
++            nY++;
++        }
++        else if (mag(eVec & z) > 1-edgeTol)
++        {
++            minZ = min(minZ, eMag);
++            maxZ = max(maxZ, eMag);
++            nZ++;
++        }
++        else
++        {
++            minOther = min(minOther, eMag);
++            maxOther = max(maxOther, eMag);
++        }
++    }
++
++    Pout<< "Mesh edge statistics:" << endl
++        << "    x aligned :  number:" << nX << "\tminLen:" << minX
++        << "\tmaxLen:" << maxX << endl
++        << "    y aligned :  number:" << nY << "\tminLen:" << minY
++        << "\tmaxLen:" << maxY << endl
++        << "    z aligned :  number:" << nZ << "\tminLen:" << minZ
++        << "\tmaxLen:" << maxZ << endl
++        << "    other     :  number:" << mesh.nEdges() - nX - nY - nZ
++        << "\tminLen:" << minOther
++        << "\tmaxLen:" << maxOther << endl << endl;
++}
++
++
++// Return index of coordinate axis.
++label axis(const vector& normal)
++{
++    label axisIndex = -1;
++
++    if (mag(normal & point(1, 0, 0)) > (1-edgeTol))
++    {
++        axisIndex = 0;
++    }
++    else if (mag(normal & point(0, 1, 0)) > (1-edgeTol))
++    {
++        axisIndex = 1;
++    }
++    else if (mag(normal & point(0, 0, 1)) > (1-edgeTol))
++    {
++        axisIndex = 2;
++    }
++
++    return axisIndex;
++}
++
++
++//- Returns -1 or cartesian coordinate component (0=x, 1=y, 2=z) of normal
++//  in case of 2D mesh
++label twoDNess(const polyMesh& mesh)
++{
++    const pointField& ctrs = mesh.cellCentres();
++
++    if (ctrs.size() < 2)
++    {
++        return -1;
++    }
++
++
++    //
++    // 1. All cell centres on single plane aligned with x, y or z
++    //
++
++    // Determine 3 points to base plane on.
++    vector vec10 = ctrs[1] - ctrs[0];
++    vec10 /= mag(vec10);
++
++    label otherCellI = -1;
++
++    for (label cellI = 2; cellI < ctrs.size(); cellI++)
++    {
++        vector vec(ctrs[cellI] - ctrs[0]);
++        vec /= mag(vec);
++
++        if (mag(vec & vec10) < 0.9)
++        {
++            // ctrs[cellI] not in line with n
++            otherCellI = cellI;
++
++            break;
++        }
++    }
++
++    if (otherCellI == -1)
++    {
++        // Cannot find cell to make decent angle with cell0-cell1 vector.
++        // Note: what to do here? All cells (almost) in one line. Maybe 1D case?
++        return -1;
++    }
++
++    plane cellPlane(ctrs[0], ctrs[1], ctrs[otherCellI]);
++
++
++    forAll(ctrs, cellI)
++    {
++        const labelList& cEdges = mesh.cellEdges()[cellI];
++
++        scalar minLen = GREAT;
++
++        forAll(cEdges, i)
++        {
++            minLen = min(minLen, mesh.edges()[cEdges[i]].mag(mesh.points()));
++        }
++
++        if (cellPlane.distance(ctrs[cellI]) > 1E-6*minLen)
++        {
++            // Centres not in plane
++            return  -1;
++        }
++    }
++
++    label axisIndex = axis(cellPlane.normal());
++
++    if (axisIndex == -1)
++    {
++        return axisIndex;
++    }
++
++
++    const polyBoundaryMesh& patches = mesh.boundaryMesh();
++
++
++    //
++    // 2. No edges without points on boundary
++    //
++
++    // Mark boundary points
++    boolList boundaryPoint(mesh.allPoints().size(), false);
++
++    forAll(patches, patchI)
++    {
++        const polyPatch& patch = patches[patchI];
++
++        forAll(patch, patchFaceI)
++        {
++            const face& f = patch[patchFaceI];
++
++            forAll(f, fp)
++            {
++                boundaryPoint[f[fp]] = true;
++            }
++        }
++    }
++
++
++    const edgeList& edges = mesh.edges();
++
++    forAll(edges, edgeI)
++    {
++        const edge& e = edges[edgeI];
++
++        if (!boundaryPoint[e.start()] && !boundaryPoint[e.end()])
++        {
++            // Edge has no point on boundary.
++            return -1;
++        }
++    }
++
++
++    // 3. For all non-wedge patches: all faces either perp or aligned with
++    //    cell-plane normal. (wedge patches already checked upon construction)
++
++    forAll(patches, patchI)
++    {
++        const polyPatch& patch = patches[patchI];
++
++        if (!isA<wedgePolyPatch>(patch))
++        {
++            const vectorField& n = patch.faceAreas();
++
++            scalarField cosAngle = mag(n/mag(n) & cellPlane.normal());
++
++            if (mag(min(cosAngle) - max(cosAngle)) > 1E-6)
++            {
++                // cosAngle should be either ~1 over all faces (2D front and
++                // back) or ~0 (all other patches perp to 2D)
++                return -1;
++            }
++        }
++    }
++
++    return axisIndex;
++}
++
++
++// ************************************************************************* //
+

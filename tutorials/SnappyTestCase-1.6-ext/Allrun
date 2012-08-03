@@ -1,0 +1,14 @@
+#!/bin/sh
+
+
+mkdir constant/polyMesh
+cp constant/blockMeshDict constant/polyMesh
+cp Files/snappyHexMeshDict system/.
+cp Files/controlDict system/.
+mkdir 0
+cp Files/pointMotionU 0/.
+cp Files/dynamicMeshDict constant/.
+cp Files/velocity .
+
+blockMesh
+mysnappyHexMesh >> log_snappy

@@ -1,0 +1,31 @@
+#!/bin/sh
+
+#As mentioned in the report mysnappyHexMesh doesnt work very well with the DynMesh option, This file has been added afterwards with a slightly better, but still not very good method for moving the internal mesh. 
+
+#This script splits mysnappyHexMesh in to two parts, one which creates the base mesh, and then one which creates the boundary layer (the settings for this is done in snappyHexMeshDictBefore, for the base mesh, and snappyHexMeshDictAfter for the boundary layers).
+
+#Inbetween the two snappyHexMeshes, the internal mesh points are moved using moveDynamicMesh, twice, one going down, with the settings in dynamicMeshDictDOWN and the other going up with the settings dynamicMeshDictUP, the difference between these two are the method used for the "stiffness" when going down, the script uses inversedistance, and going up it uses uniform, which means that all the points will be showed downwards.
+
+#This script should yield a better mesh then the method used in Allrun, and this method is suggested over the full-on-mysnappyHexMesh use that is used in the Allrun script.
+
+
+mkdir constant/polyMesh
+cp constant/blockMeshDict constant/polyMesh
+cp Files/forAllrun2/snappyHexMeshDictBefore system/snappyHexMeshDict
+cp Files/forAllrun2/controlDict system/.
+mkdir 0
+cp Files/forAllrun2/pointMotionU 0/.
+cp Files/forAllrun2/dynamicMeshDictDOWN constant/dynamicMeshDict
+cp Files/forAllrun2/velocity .
+
+blockMesh
+mysnappyHexMesh >> log_snappy
+moveDynamicMesh >> log_DynMesh
+
+cp Files/forAllrun2/dynamicMeshDictUP constant/dynamicMeshDict
+
+moveDynamicMesh >> log_DynMesh
+
+cp Files/forAllrun2/snappyHexMeshDictAfter system/snappyHexMeshDict
+
+mysnappyHexMesh >> log_snappy

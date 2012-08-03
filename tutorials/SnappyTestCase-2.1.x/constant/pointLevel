@@ -1,0 +1,51 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM Extend Project: Open source CFD        |
+|  \\    /   O peration     | Version:  1.6-ext                               |
+|   \\  /    A nd           | Web:      www.extend-project.de                 |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       pointScalarField;
+    location    "constant";
+    object      pointLevel;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 0 0 0 0 0 0];
+
+internalField   uniform 0;
+
+boundaryField
+{
+    maxX
+    {
+        type            calculated;
+    }
+    AcrossRiver_patch0
+    {
+        type            calculated;
+    }
+    maxZ
+    {
+        type            calculated;
+    }
+    minX
+    {
+        type            calculated;
+    }
+    minY
+    {
+        type            calculated;
+    }
+    maxY
+    {
+        type            calculated;
+    }
+}
+
+
+// ************************************************************************* //

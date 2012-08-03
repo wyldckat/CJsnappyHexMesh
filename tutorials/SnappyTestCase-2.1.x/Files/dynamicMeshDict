@@ -1,0 +1,45 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  1.4                                   |
+|   \\  /    A nd           | Web:      http://www.openfoam.org               |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+    version         2.0;
+    format          ascii;
+
+    root            "";
+    case            "";
+    instance        "";
+    local           "";
+
+    class           dictionary;
+    object          motionProperties;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dynamicFvMesh dynamicMotionSolverFvMesh;
+
+motionSolverLibs ("libfvMotionSolvers.so");
+
+//solver displacementSBRStress;
+//solver displacementLaplacian;
+//solver velocityComponentLaplacian x;
+solver velocityLaplacian;
+
+
+//diffusivity  uniform;
+//diffusivity  directional (10 .10 1);
+
+
+//diffusivity  motionDirectional (10 10 0.1);
+//diffusivity  inverseDistance 1 (maxZ);
+//diffusivity  file motionDiffusivity;
+diffusivity  quadratic inverseDistance 1 (maxZ);
+//diffusivity  exponential -0.01 inverseDistance 1 (AcrossRiver_patch0);
+
+// ************************************************************************* //

@@ -1,0 +1,64 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  1.4                                   |
+|   \\  /    A nd           | Web:      http://www.openfoam.org               |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+    version 2.0;
+    format ascii;
+
+    root "";
+    case "";
+    instance ""0.000000e+00"";
+    local "";
+
+    class pointVectorField;
+    object pointMotionU;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform (0 0 0);
+
+boundaryField
+{
+    maxX
+    {
+        type            slip;        
+    }
+    maxY
+    {
+        type            slip;         
+    }
+    minY
+    {
+        type            slip;       
+    }
+    maxZ
+    {
+
+	type timeVaryingUniformFixedValue;
+	fileName "velocity";
+	outOfBounds repeat;
+
+    }
+    AcrossRiver_patch0
+    {
+            type            fixedValue;
+            value           uniform (0 0 0);
+
+    }
+    minX
+    {
+        type            slip;      
+    }
+}
+
+
+// ************************************************************************* //

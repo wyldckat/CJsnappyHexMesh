@@ -153,6 +153,10 @@ castellatedMeshControls
     // NOTE: This point should never be on a face, always inside a cell, even
     // after refinement.
     locationInMesh (659535 4.7513e+06 1328);
+
+    //Added for 2.1.x
+    allowFreeStandingZoneFaces false;
+
 }
 
 
@@ -296,6 +300,8 @@ meshQualityControls
     //must be >0 for Fluent compatibility
     minTriangleTwist -1;
 
+    //Added for 2.1.x, no clue what should be used here...
+    minTetQuality -1;
 
     // Advanced
 

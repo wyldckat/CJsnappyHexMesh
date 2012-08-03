@@ -1,3 +1,3 @@
-snappyHexMesh.C
+mysnappyHexMesh.C
+EXE = $(FOAM_USER_APPBIN)/CJsnappyHexMesh
 
-EXE = $(FOAM_APPBIN)/snappyHexMesh

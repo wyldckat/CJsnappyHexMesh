@@ -45,6 +45,27 @@ Description
 #include "refinementParameters.H"
 #include "snapParameters.H"
 #include "layerParameters.H"
+#include "dynamicFvMesh.H"
+#include "polyMesh.H"
+#include "undoableMeshCutter.H"
+#include "hexCellLooper.H"
+#include "cellSet.H"
+#include "twoDPointCorrector.H"
+#include "directions.H"
+#include "OFstream.H"
+#include "multiDirRefinement.H"
+#include "labelIOList.H"
+#include "wedgePolyPatch.H"
+#include "plane.H"
+#include "cellCuts.H"
+#include "cellSet.H"
+#include "meshCutter.H"
+#include "directTopoChange.H"
+#include "mapPolyMesh.H"
+#include "fvCFD.H"
+#include "pointFields.H"
+#include "Istream.H"
+#include "pointMesh.H"
 
 
 using namespace Foam;
@@ -89,6 +110,7 @@ scalar getMergeDistance(const polyMesh& mesh, const scalar mergeTol)
     return mergeDist;
 }
 
+#include "refineMeshStuff.H"
 
 // Write mesh and additional information
 void writeMesh
@@ -120,6 +142,8 @@ void writeMesh
 
 int main(int argc, char *argv[])
 {
+  for (int Testing=1;Testing<=10;Testing++)
+  {
 #   include "addOverwriteOption.H"
 
 #   include "setRootCase.H"
@@ -399,6 +423,37 @@ int main(int argc, char *argv[])
     const Switch wantRefine(meshDict.lookup("castellatedMesh"));
     const Switch wantSnap(meshDict.lookup("snap"));
     const Switch wantLayers(meshDict.lookup("addLayers"));
+    const Switch wantProjection(meshDict.lookup("projection"));
+    const Switch wantDynMesh(meshDict.lookup("DynMesh"));
+    const Switch wantRefineMesh(meshDict.lookup("refineMesh"));
+    const Switch wantBoundaryLayer(meshDict.lookup("boundaryLayer"));
+
+    pointMesh pMesh(mesh);
+    pointVectorField pointMotionU
+    (
+          IOobject
+          (
+                  "pointMotionU",
+                  runTime.timeName(),
+                  mesh,
+                  IOobject::MUST_READ,
+                  IOobject::AUTO_WRITE
+            ),
+            pMesh
+    );
+     
+  scalar nRefs=0;
+  if (wantRefineMesh)
+  {
+    nRefs=readScalar(meshDict.lookup("nRefinements"));
+  }
+
+  bool notLast=true;
+  if (Testing==nRefs+1)
+  {
+    Testing=10;
+    notLast=false;
+  }
 
     if (wantRefine)
     {
@@ -433,7 +488,7 @@ int main(int argc, char *argv[])
             << timer.cpuTimeIncrement() << " s." << endl;
     }
 
-    if (wantSnap)
+    if (wantSnap || wantProjection)
     {
         cpuTime timer;
 
@@ -470,6 +525,30 @@ int main(int argc, char *argv[])
             << timer.cpuTimeIncrement() << " s." << endl;
     }
 
+    if (wantRefineMesh && notLast)
+    {
+      #   include "refineMesh.H"
+    }
+    if (wantDynMesh && Testing==10)
+    {
+      scalar nDynIter=readScalar(meshDict.lookup("nDynIter")); 
+      #   include "moveDynamicMesh.H"
+    }
+    if (wantBoundaryLayer && Testing==10)
+    {
+      #   include "createWeights.H"
+      //splitting the closest row of cells in to nLayer amount of cells. using the
+      //source code from refineWallLayer.C.
+      scalar weight=0;
+      for(int i=0;i<nLayers-2;i++)
+      {
+        //calculating the weighted place to cut the mesh for this itteration.
+        Info << "weight =" << Li[i] << endl;
+        weight=Li[i];
+        #   include "refineBoundaryWallLayer.H"
+      }
+    }
+    
     if (wantLayers)
     {
         cpuTime timer;
@@ -523,6 +602,8 @@ int main(int argc, char *argv[])
         << runTime.elapsedCpuTime() << " s." << endl;
 
     Info<< "End\n" << endl;
+
+  } // for (int Testing=1;Testing<=10;Testing++)
 
     return 0;
 }

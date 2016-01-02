@@ -10,6 +10,8 @@ Original sources from OpenFOAM 2.1.x and 1.6-ext:
 * 2.1.x commit 334ec14f742f95b1198bc0de318d625fc724b5e7
 * 1.6-ext commit c04489736fa1e44c123c6d801f54044f2679bfca
 
+This [https://github.com/wyldckat/CJsnappyHexMesh git repository] was brought to you by Bruno Santos (wyldckat@github working at [http://www.bluecape.com.pt blueCAPE Lda]).
+
 = Usage instructions =
 
 <ol><li>Download, either using <code>git</code> or use the ''Downloads'' pseudo-button on the top right at [https://github.com/wyldckat/CJsnappyHexMesh].</li>
